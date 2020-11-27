@@ -1,0 +1,5 @@
+{
+    "name": "Mjpeg Timelapse",
+    "domains": ["camera"],
+    "homeassistant": "0.118.0"
+}

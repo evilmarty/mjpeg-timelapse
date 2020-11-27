@@ -1,0 +1,8 @@
+{
+    "domain": "mjpeg_timelapse",
+    "name": "Mjpeg Timelapse",
+    "documentation": "https://github.com/evilmarty/mjpeg-timelapse",
+    "dependencies": [],
+    "codeowners": ["@evilmarty"],
+    "requirements": []
+  }

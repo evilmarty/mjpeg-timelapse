@@ -169,7 +169,7 @@ class MjpegTimelapseCamera(Camera):
             file.unlink(missing_ok=True)
 
     def _image_filenames(self):
-        return list(self._image_dir.glob("*.jpg"))
+        return sorted(self._image_dir.glob("*.jpg"))
 
     def camera_image(self):
         try:

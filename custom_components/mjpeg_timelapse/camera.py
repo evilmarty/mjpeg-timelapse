@@ -183,18 +183,25 @@ class MjpegTimelapseCamera(Camera):
             return None
 
     async def handle_async_mjpeg_stream(self, request):
-        images = self._image_filenames()
+        def get_images():
+            if self._loop:
+                return itertools.cycle(self._image_filenames())
+            else:
+                return iter(self._image_filenames())
 
-        if self._loop:
-            images = itertools.cycle(images)
-        else:
-            images = iter(images)
+        images = get_images()
 
         async def next_image():
+            nonlocal images
+
             try:
-                with open(next(images), "rb") as file:
-                    return file.read()
-            except StopIteration as err:
+                while True:
+                    try:
+                        with open(next(images), "rb") as file:
+                            return file.read()
+                    except FileNotFoundError:
+                        images = get_images()
+            except StopIteration:
                 return None
 
         return await async_get_still_stream(request, next_image, DEFAULT_CONTENT_TYPE, self._frame_interval)

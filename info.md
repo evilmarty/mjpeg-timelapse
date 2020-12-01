@@ -34,3 +34,6 @@ camera:
 
 **quality**
 - (integer)(Optional)The image quality between 1 and 100. Default is 75.
+
+**loop**
+- (boolean)(Optional)Loop the playback of the timelapse. Default is true.

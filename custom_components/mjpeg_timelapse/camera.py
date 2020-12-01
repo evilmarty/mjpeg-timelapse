@@ -47,6 +47,7 @@ CONF_FETCH_INTERVAL = "fetch_interval"
 CONF_MAX_FRAMES = "max_frames"
 CONF_FRAMERATE = "framerate"
 CONF_QUALITY = "quality"
+CONF_LOOP = "loop"
 
 DEFAULT_NAME = "Mjpeg Timelapse Camera"
 
@@ -62,6 +63,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         vol.Optional(CONF_MAX_FRAMES, default=100): cv.positive_int,
         vol.Optional(CONF_QUALITY, default=75): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
+        vol.Optional(CONF_LOOP, default=True): cv.boolean,
     }
 )
 
@@ -83,6 +85,7 @@ class MjpegTimelapseCamera(Camera):
         self._fetch_interval = dt.timedelta(seconds=device_info[CONF_FETCH_INTERVAL])
         self._max_frames = device_info[CONF_MAX_FRAMES]
         self._quality = device_info[CONF_QUALITY]
+        self._loop = device_info[CONF_LOOP]
         self._supported_features = None
 
         self._remove_listener = hass.helpers.event.async_track_time_interval(self.__fetch_image, self._fetch_interval)
@@ -180,7 +183,12 @@ class MjpegTimelapseCamera(Camera):
             return None
 
     async def handle_async_mjpeg_stream(self, request):
-        images = itertools.cycle(self._image_filenames())
+        images = self._image_filenames()
+
+        if self._loop:
+            images = itertools.cycle(images)
+        else:
+            images = iter(images)
 
         async def next_image():
             try:

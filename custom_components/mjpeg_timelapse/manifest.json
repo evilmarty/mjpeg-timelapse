@@ -4,5 +4,6 @@
     "documentation": "https://github.com/evilmarty/mjpeg-timelapse",
     "dependencies": [],
     "codeowners": ["@evilmarty"],
-    "requirements": []
+    "requirements": [],
+    "version": "2020.12.02"
   }

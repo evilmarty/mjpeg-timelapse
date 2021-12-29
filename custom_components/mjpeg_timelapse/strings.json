@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mjpeg Timelapse Entry",
+        "description": "Add a new timelapse entry.",
+        "data": {
+          "image_url": "Image URL",
+          "name": "[%key:common::config_flow::data::name%]",
+          "framerate": "Framerate",
+          "fetch_interval": "Fetch Interval",
+          "max_frames": "Max Frames",
+          "quality": "Quality",
+          "loop": "Loop Playback",
+          "headers": "Additional Headers"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+      "invalid_url": "[%key:common::config_flow::abort::invalid_url%]",
+      "below_minimum_value": "[%key:common::config_flow::abort::below_minimum_value%]"
+    },
+    "abort": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+    }
+  }
+}

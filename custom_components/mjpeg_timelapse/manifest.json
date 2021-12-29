@@ -2,7 +2,8 @@
     "domain": "mjpeg_timelapse",
     "name": "Mjpeg Timelapse",
     "documentation": "https://github.com/evilmarty/mjpeg-timelapse",
-    "dependencies": [],
+    "dependencies": ["camera"],
+    "config_flow": true,
     "codeowners": ["@evilmarty"],
     "requirements": [],
     "version": "2021.12.29"

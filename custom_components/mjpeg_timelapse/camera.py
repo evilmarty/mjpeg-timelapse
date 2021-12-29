@@ -64,6 +64,20 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+
+async def async_setup_entry(hass, entry, async_add_entities):
+    """Setup Mjpeg Timelapse from a config entry."""
+    data = hass.data[DOMAIN].get(entry.entry_id)
+    async_add_entities([MjpegTimelapseCamera(hass, data)])
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_CLEAR_IMAGES,
+        {},
+        "clear_images",
+    )
+
+
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Setup Mjpeg Timelapse Camera"""
     async_add_entities([MjpegTimelapseCamera(hass, config)])

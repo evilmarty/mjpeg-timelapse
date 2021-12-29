@@ -7,6 +7,7 @@ import pathlib
 import shutil
 import hashlib
 import itertools
+from urllib.parse import urlparse
 
 from PIL import Image, UnidentifiedImageError
 import aiohttp
@@ -15,7 +16,7 @@ import voluptuous as vol
 from homeassistant.components.camera import (
     DEFAULT_CONTENT_TYPE,
     PLATFORM_SCHEMA,
-    SUPPORT_STREAM,
+    SUPPORT_ON_OFF,
     Camera,
     async_get_still_stream,
 )
@@ -48,12 +49,13 @@ CONF_MAX_FRAMES = "max_frames"
 CONF_FRAMERATE = "framerate"
 CONF_QUALITY = "quality"
 CONF_LOOP = "loop"
+CONF_HEADERS = "headers"
 
 DEFAULT_NAME = "Mjpeg Timelapse Camera"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_IMAGE_URL): cv.string,
+        vol.Required(CONF_IMAGE_URL): cv.url,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_FETCH_INTERVAL, default=60.0): vol.Any(
             cv.small_float, cv.positive_int
@@ -64,6 +66,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MAX_FRAMES, default=100): cv.positive_int,
         vol.Optional(CONF_QUALITY, default=75): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
         vol.Optional(CONF_LOOP, default=True): cv.boolean,
+        vol.Optional(CONF_HEADERS, default={}): dict,
     }
 )
 
@@ -74,109 +77,174 @@ class MjpegTimelapseCamera(Camera):
     def __init__(self, hass, device_info):
         super().__init__()
         self.hass = hass
-        self._last_modified = None
-        self._loaded = False
+        self.last_modified = None
+        self.last_updated = None
+        self._fetching_listener = None
 
-        self._image_url = device_info[CONF_IMAGE_URL]
-        self._image_url_hash = hashlib.sha256(self._image_url.encode("utf-8")).hexdigest()
-        self._image_dir = pathlib.Path(hass.config.path(DOMAIN)) / self._image_url_hash
-        self._name = device_info[CONF_NAME]
-        self._frame_interval = 1 / device_info[CONF_FRAMERATE]
-        self._fetch_interval = dt.timedelta(seconds=device_info[CONF_FETCH_INTERVAL])
-        self._max_frames = device_info[CONF_MAX_FRAMES]
-        self._quality = device_info[CONF_QUALITY]
-        self._loop = device_info[CONF_LOOP]
-        self._supported_features = None
+        self._attr_name = device_info[CONF_NAME]
+        self._attr_image_url = device_info[CONF_IMAGE_URL]
+        self._attr_attribution = urlparse(self._attr_image_url).netloc
+        self._attr_unique_id = hashlib.sha256(self._attr_image_url.encode("utf-8")).hexdigest()
+        self.image_dir = pathlib.Path(hass.config.path(DOMAIN)) / self._attr_unique_id
+        self._attr_frame_rate = device_info[CONF_FRAMERATE]
+        self._attr_fetch_interval = dt.timedelta(seconds=device_info[CONF_FETCH_INTERVAL])
+        self._attr_max_frames = device_info[CONF_MAX_FRAMES]
+        self._attr_quality = device_info[CONF_QUALITY]
+        self._attr_supported_features = SUPPORT_ON_OFF
+        self._attr_loop = device_info[CONF_LOOP]
+        self._attr_headers = device_info[CONF_HEADERS]
 
-        self._remove_listener = hass.helpers.event.async_track_time_interval(self.__fetch_image, self._fetch_interval)
+        if self._attr_is_on == True:
+            self.start_fetching()
 
     @property
-    def name(self):
-        """Return the name."""
-        return self._name
+    def icon(self):
+        """Return the icon."""
+        return "mdi:image-multiple"
+
+    @property
+    def image_url(self):
+        """Return the image url."""
+        return self._attr_image_url
+
+    @property
+    def frame_rate(self):
+        """Return the framerate."""
+        return self._attr_frame_rate
 
     @property
     def frame_interval(self):
-        """Return the interval between frames of the mjpeg stream."""
-        return self._frame_interval
+        """Return the frame interval."""
+        return 1 / self.frame_rate
 
     @property
     def fetch_interval(self):
         """Return the fetch interval."""
-        return self._fetch_interval
+        return self._attr_fetch_interval
 
     @property
     def max_frames(self):
         """Return the maximum frames."""
-        return self._max_frames
+        return self._attr_max_frames
 
     @property
     def quality(self):
         """Return the quality."""
-        return self._quality
+        return self._attr_quality
 
-    async def __fetch_image(self, _time):
+    @property
+    def loop(self):
+        """Indicate whether to loop or not."""
+        return self._attr_loop
+
+    @property
+    def headers(self):
+        """Return additional headers for request."""
+        return self._attr_headers
+
+    @property
+    def is_recording(self):
+        """Indicate whether recording or not."""
+        return self._fetching_listener is not None
+
+    def turn_on(self):
+        """Turn on the camera."""
+        self.start_fetching()
+        self._attr_is_on = True
+
+    def turn_off(self):
+        """Turn off the camera."""
+        self.stop_fetching()
+        self._attr_is_on = False
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "image_url": self.image_url,
+            "fetch_interval": self.fetch_interval.total_seconds(),
+            "frame_rate": self.frame_rate,
+            "max_frames": self.max_frames,
+            "quality": self.quality,
+            "loop": self.loop,
+            "headers": self.headers,
+            "last_updated": self.last_updated
+        }
+
+    def start_fetching(self):
+        """Start fetching images periodically."""
+        if self._fetching_listener is None:
+            self._fetching_listener = self.hass.helpers.event.async_track_time_interval(self.fetch_image, self.fetch_interval)
+
+    def stop_fetching(self):
+        """Stop fetching images."""
+        if self._fetching_listener is not None:
+            self._fetching_listener()
+            self._fetching_listener = None
+
+    async def fetch_image(self, _time):
+        headers = {**self.headers}
         session = async_get_clientsession(self.hass)
 
-        if self._last_modified:
-            headers = {"If-Modified-Since": self._last_modified}
-        else:
-            headers = {}
+        if self.last_modified:
+            headers["If-Modified-Since"] = self.last_modified
 
         try:
-            async with session.get(self._image_url, timeout=5, headers=headers) as res:
+            async with session.get(self.image_url, timeout=5, headers=headers) as res:
                 res.raise_for_status()
+                self._attr_available = True
 
                 if res.status == 304:
                     _LOGGER.debug("HTTP 304 - success")
-                    return True
+                    return
 
                 last_modified = res.headers.get("Last-Modified")
                 if last_modified:
-                    self._last_modified = last_modified
+                    self.last_modified = last_modified
                     last_modified = dt.datetime(*eut.parsedate(last_modified)[:6])
 
                 data = await res.read()
-                _LOGGER.debug("HTTP 200 - Last-Modified: %s", self._last_modified)
+                _LOGGER.debug("HTTP %d - Last-Modified: %s", res.status, self.last_modified)
 
-                timestamp = dt_util.as_timestamp(dt_util.as_utc(last_modified or dt_util.utcnow()))
-                try:
-                    await self.hass.async_add_executor_job(self.__save_image, str(int(timestamp)), data)
-                except OSError as err:
-                    _LOGGER.error("Can't write image to file: %s", err)
+                self.last_updated = dt_util.as_timestamp(dt_util.as_utc(last_modified or dt_util.utcnow()))
+                await self.hass.async_add_executor_job(self.save_image, str(int(self.last_updated)), data)
 
+        except OSError as err:
+            _LOGGER.error("Can't write image to file: %s", err)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.error("Failed to fetch image, %s", type(err))
+            self._attr_available = False
 
-    def __save_image(self, basename, data):
+        self.async_write_ha_state()
+
+    def save_image(self, basename, data):
         try:
             image = Image.open(io.BytesIO(data)).convert('RGB')
         except UnidentifiedImageError as err:
             raise vol.Invalid("Unable to identify image file") from err
 
-        self._image_dir.mkdir(parents=True, exist_ok=True)
-        media_file = self._image_dir / "{}.jpg".format(basename)
+        self.image_dir.mkdir(parents=True, exist_ok=True)
+        media_file = self.image_dir / "{}.jpg".format(basename)
 
         _LOGGER.debug("Storing file %s", media_file)
 
         with media_file.open("wb") as target:
-            image.save(target, "JPEG", quality=self._quality)
+            image.save(target, "JPEG", quality=self.quality)
 
-        self.__cleanup()
+        self.cleanup()
 
-    def __cleanup(self):
-        images = self._image_filenames()
+    def cleanup(self):
+        images = self.image_filenames()
         total_frames = len(images)
-        d = total_frames > self._max_frames and total_frames - self._max_frames or 0
+        d = total_frames > self.max_frames and total_frames - self.max_frames or 0
         for file in images[:d]:
             file.unlink(missing_ok=True)
 
-    def _image_filenames(self):
-        return sorted(self._image_dir.glob("*.jpg"))
+    def image_filenames(self):
+        return sorted(self.image_dir.glob("*.jpg"))
 
     def camera_image(self):
         try:
-            last_image = self._image_filenames().pop()
+            last_image = self.image_filenames().pop()
             with open(last_image, "rb") as file:
                 return file.read()
         except IndexError as err:
@@ -184,10 +252,10 @@ class MjpegTimelapseCamera(Camera):
 
     async def handle_async_mjpeg_stream(self, request):
         def get_images():
-            if self._loop:
-                return itertools.cycle(self._image_filenames())
+            if self.loop:
+                return itertools.cycle(self.image_filenames())
             else:
-                return iter(self._image_filenames())
+                return iter(self.image_filenames())
 
         images = get_images()
 
@@ -195,7 +263,7 @@ class MjpegTimelapseCamera(Camera):
             nonlocal images
 
             try:
-                while True:
+                while self.is_on:
                     try:
                         with open(next(images), "rb") as file:
                             return file.read()
@@ -204,8 +272,9 @@ class MjpegTimelapseCamera(Camera):
             except StopIteration:
                 return None
 
-        return await async_get_still_stream(request, next_image, DEFAULT_CONTENT_TYPE, self._frame_interval)
+        return await async_get_still_stream(request, next_image, DEFAULT_CONTENT_TYPE, self.frame_interval)
 
     async def async_removed_from_registry(self):
-        await self.hass.async_add_executor_job(shutil.rmtree, self._image_dir)
+        self.stop_fetching()
+        await self.hass.async_add_executor_job(shutil.rmtree, self.image_dir)
 

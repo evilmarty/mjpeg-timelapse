@@ -26,7 +26,7 @@ from homeassistant.const import CONF_NAME
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import TemplateError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.reload import async_setup_reload_service
 import homeassistant.util.dt as dt_util
@@ -41,6 +41,7 @@ from .const import (
     CONF_QUALITY,
     CONF_LOOP,
     CONF_HEADERS,
+    SERVICE_CLEAR_IMAGES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,7 +65,16 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+    """Setup Mjpeg Timelapse Camera"""
     async_add_entities([MjpegTimelapseCamera(hass, config)])
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_CLEAR_IMAGES,
+        {},
+        "clear_images",
+    )
+
 
 class MjpegTimelapseCamera(Camera):
     def __init__(self, hass, device_info):
@@ -226,11 +236,16 @@ class MjpegTimelapseCamera(Camera):
         self.cleanup()
 
     def cleanup(self):
+        """Removes excess images."""
         images = self.image_filenames()
         total_frames = len(images)
         d = total_frames > self.max_frames and total_frames - self.max_frames or 0
         for file in images[:d]:
             file.unlink(missing_ok=True)
+
+    def clear_images(self):
+        """Remove all images."""
+        return self.hass.async_add_executor_job(shutil.rmtree, self.image_dir)
 
     def image_filenames(self):
         return sorted(self.image_dir.glob("*.jpg"))
@@ -269,5 +284,5 @@ class MjpegTimelapseCamera(Camera):
 
     async def async_removed_from_registry(self):
         self.stop_fetching()
-        await self.hass.async_add_executor_job(shutil.rmtree, self.image_dir)
+        await self.clear_images()
 

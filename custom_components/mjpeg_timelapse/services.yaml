@@ -1,0 +1,7 @@
+clear_images:
+  name: Clear images
+  description: Deletes all recorded images.
+  target:
+    entity:
+      integration: mjpeg_timelapse
+      domain: camera

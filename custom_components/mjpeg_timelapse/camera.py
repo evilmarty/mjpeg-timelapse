@@ -22,16 +22,7 @@ from homeassistant.components.camera import (
 )
 from homeassistant.components.camera.const import DOMAIN
 
-from homeassistant.const import (
-    CONF_ID,
-    CONF_AUTHENTICATION,
-    CONF_NAME,
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    CONF_VERIFY_SSL,
-    HTTP_BASIC_AUTHENTICATION,
-    HTTP_DIGEST_AUTHENTICATION,
-)
+from homeassistant.const import CONF_NAME
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import TemplateError
@@ -81,18 +72,18 @@ class MjpegTimelapseCamera(Camera):
         self.last_updated = None
         self._fetching_listener = None
 
-        self._attr_name = device_info[CONF_NAME]
         self._attr_image_url = device_info[CONF_IMAGE_URL]
         self._attr_attribution = urlparse(self._attr_image_url).netloc
+        self._attr_name = device_info.get(CONF_NAME, self._attr_attribution)
         self._attr_unique_id = hashlib.sha256(self._attr_image_url.encode("utf-8")).hexdigest()
         self.image_dir = pathlib.Path(hass.config.path(DOMAIN)) / self._attr_unique_id
-        self._attr_frame_rate = device_info[CONF_FRAMERATE]
-        self._attr_fetch_interval = dt.timedelta(seconds=device_info[CONF_FETCH_INTERVAL])
-        self._attr_max_frames = device_info[CONF_MAX_FRAMES]
-        self._attr_quality = device_info[CONF_QUALITY]
+        self._attr_frame_rate = device_info.get(CONF_FRAMERATE, 2)
+        self._attr_fetch_interval = dt.timedelta(seconds=device_info.get(CONF_FETCH_INTERVAL, 60))
+        self._attr_max_frames = device_info.get(CONF_MAX_FRAMES, 100)
+        self._attr_quality = device_info.get(CONF_QUALITY, 100)
         self._attr_supported_features = SUPPORT_ON_OFF
-        self._attr_loop = device_info[CONF_LOOP]
-        self._attr_headers = device_info[CONF_HEADERS]
+        self._attr_loop = device_info.get(CONF_LOOP, False)
+        self._attr_headers = device_info.get(CONF_HEADERS, {})
 
         if self._attr_is_on == True:
             self.start_fetching()

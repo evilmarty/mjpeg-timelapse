@@ -20,7 +20,7 @@ from homeassistant.components.camera import (
     Camera,
     async_get_still_stream,
 )
-from homeassistant.components.camera.const import DOMAIN
+from homeassistant.components.camera.const import DOMAIN as CAMERA_DOMAIN
 
 from homeassistant.const import CONF_NAME
 
@@ -31,18 +31,20 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.reload import async_setup_reload_service
 import homeassistant.util.dt as dt_util
 
+from .const import (
+    DOMAIN,
+    DEFAULT_NAME,
+    CONF_IMAGE_URL,
+    CONF_FETCH_INTERVAL,
+    CONF_MAX_FRAMES,
+    CONF_FRAMERATE,
+    CONF_QUALITY,
+    CONF_LOOP,
+    CONF_HEADERS,
+)
+
 _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
-
-CONF_IMAGE_URL = "image_url"
-CONF_FETCH_INTERVAL = "fetch_interval"
-CONF_MAX_FRAMES = "max_frames"
-CONF_FRAMERATE = "framerate"
-CONF_QUALITY = "quality"
-CONF_LOOP = "loop"
-CONF_HEADERS = "headers"
-
-DEFAULT_NAME = "Mjpeg Timelapse Camera"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -76,7 +78,7 @@ class MjpegTimelapseCamera(Camera):
         self._attr_attribution = urlparse(self._attr_image_url).netloc
         self._attr_name = device_info.get(CONF_NAME, self._attr_attribution)
         self._attr_unique_id = hashlib.sha256(self._attr_image_url.encode("utf-8")).hexdigest()
-        self.image_dir = pathlib.Path(hass.config.path(DOMAIN)) / self._attr_unique_id
+        self.image_dir = pathlib.Path(hass.config.path(CAMERA_DOMAIN)) / self._attr_unique_id
         self._attr_frame_rate = device_info.get(CONF_FRAMERATE, 2)
         self._attr_fetch_interval = dt.timedelta(seconds=device_info.get(CONF_FETCH_INTERVAL, 60))
         self._attr_max_frames = device_info.get(CONF_MAX_FRAMES, 100)

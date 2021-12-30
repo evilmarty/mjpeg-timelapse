@@ -27,12 +27,28 @@ Alternatively, installation can be done manually by copying the files in this re
 6. Add the integration to Home Assistant (see `Configuration`)
 
 ### Configuration
+
+After you have installed the custom component (see above):
+
+1. Goto the Configuration -> Integrations page.
+2. On the bottom right of the page, click on the + Add Integration sign to add an integration.
+3. Search for Mjpeg Timelapse. (If you don't see it, try refreshing your browser page to reload the cache.)
+4. Click Submit so add the integration.
+
+Alternatively, you can add entries in your `configuration.yaml` file.
+
 ```
 camera:
   - platform: mjpeg_timelapse
     image_url: http://example.com/foobar.gif
+    name: Example
     fetch_interval: 30
+    max_frames: 10
+    framerate: 3
     quality: 50
+    loop: false
+    headers:
+      X-Custom-Header: Some Value
 ```
 
 ### Configuration Variables
@@ -57,3 +73,6 @@ camera:
 
 **loop**
 - (boolean)(Optional)Loop the playback of the timelapse. Default is true.
+
+**headers**
+- (boolean)(Optional)Additional headers to the image request.

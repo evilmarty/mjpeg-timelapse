@@ -21,7 +21,7 @@ The easiest way is to install the integration using [HACS](https://hacs.xyz).
 Alternatively, installation can be done manually by copying the files in this repository into the custom_components directory in the HA configuration directory:
 1. Open the configuration directory of your HA configuration.
 2. If you do not have a custom_components directory, you need to create it.
-3. In the custom_components directory create a new directory called audiconnect.
+3. In the custom_components directory create a new directory called mjpeg_timelapse.
 4. Copy all the files from the custom_components/mjpeg_timelapse/ directory in this repository into the mjpeg_timelapse directory.
 5. Restart Home Assistant
 6. Add the integration to Home Assistant (see `Configuration`)

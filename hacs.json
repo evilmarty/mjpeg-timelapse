@@ -1,5 +1,7 @@
 {
     "name": "Mjpeg Timelapse",
     "domains": ["camera"],
-    "homeassistant": "0.118.0"
+    "homeassistant": "0.118.0",
+    "content_in_root": false,
+    "render_readme": true
 }

@@ -1,12 +1,9 @@
 # Mjpeg Timelapse integration for Home Assistant
 
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE.md)
-[![Code Style][blackbadge]][black]
-
-[![hacs][hacsbadge]](hacs)
-![Project Maintenance][maintenance-shield]
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
+[![Repository Stars](https://img.shields.io/github/stars/evilmarty/mjpeg-timelapse)](https://github.com/evilmarty/mjpeg-timelapse)
+[![Github Activity](https://img.shields.io/github/commit-activity/m/evilmarty/mjpeg-timelapse)](https://github.com/evilmarty/mjpeg-timelapse/commits/main)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![BuyMeCoffee](https://badgen.net/badge/icon/buymeacoffee?icon=buymeacoffee&label&color=yellow)](https://www.buymeacoffee.com/evilmarty)
 
 ## Description
 

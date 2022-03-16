@@ -45,7 +45,10 @@ from .const import (
     CONF_QUALITY,
     CONF_LOOP,
     CONF_HEADERS,
+    CONF_PAUSED,
     SERVICE_CLEAR_IMAGES,
+    SERVICE_PAUSE_RECORDING,
+    SERVICE_RESUME_RECORDING,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,6 +84,16 @@ async def async_setup_entry(hass, entry, async_add_entities):
         SERVICE_CLEAR_IMAGES,
         {},
         "clear_images",
+    )
+    platform.async_register_entity_service(
+        SERVICE_PAUSE_RECORDING,
+        {},
+        "pause_recording",
+    )
+    platform.async_register_entity_service(
+        SERVICE_RESUME_RECORDING,
+        {},
+        "resume_recording",
     )
 
 
@@ -118,9 +131,15 @@ class MjpegTimelapseCamera(Camera):
         self._attr_headers = device_info.get(CONF_HEADERS, {})
         self._attr_username = device_info.get(CONF_USERNAME, {})
         self._attr_password = device_info.get(CONF_PASSWORD, {})
+        self._attr_is_paused = device_info.get(CONF_PAUSED, False)
 
         if self._attr_is_on == True:
             self.start_fetching()
+
+    @property
+    def should_poll(self):
+        """Return false for should poll."""
+        return False
 
     @property
     def icon(self):
@@ -178,13 +197,19 @@ class MjpegTimelapseCamera(Camera):
         return self._attr_password
 
     @property
+    def is_paused(self):
+        """Returns whether recording is paused."""
+        return self._attr_is_paused
+
+    @property
     def is_recording(self):
         """Indicate whether recording or not."""
         return self._fetching_listener is not None
 
     def turn_on(self):
         """Turn on the camera."""
-        self.start_fetching()
+        if not self.is_paused:
+            self.start_fetching()
         self._attr_is_on = True
 
     def turn_off(self):
@@ -215,6 +240,18 @@ class MjpegTimelapseCamera(Camera):
         if self._fetching_listener is not None:
             self._fetching_listener()
             self._fetching_listener = None
+
+    def pause_recording(self):
+        """Pause recording images."""
+        self.stop_fetching()
+        self._attr_is_paused = True
+        self.schedule_update_ha_state()
+
+    def resume_recording(self):
+        """Pause recording images."""
+        self.start_fetching()
+        self._attr_is_paused = False
+        self.schedule_update_ha_state()
 
     async def fetch_image(self, _time):
         headers = {**self.headers}
@@ -253,7 +290,7 @@ class MjpegTimelapseCamera(Camera):
             _LOGGER.error("Failed to fetch image for '%s': %s", self.name, err)
             self._attr_available = False
 
-        self.async_write_ha_state()
+        await self.async_write_ha_state()
 
     def save_image(self, basename, data):
         try:

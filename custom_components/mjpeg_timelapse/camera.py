@@ -22,7 +22,11 @@ from homeassistant.components.camera import (
 )
 from homeassistant.components.camera.const import DOMAIN as CAMERA_DOMAIN
 
-from homeassistant.const import CONF_NAME
+from homeassistant.const import (
+    CONF_NAME,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+)
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import TemplateError
@@ -61,6 +65,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_QUALITY, default=75): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
         vol.Optional(CONF_LOOP, default=True): cv.boolean,
         vol.Optional(CONF_HEADERS, default={}): dict,
+        vol.Optional(CONF_USERNAME): str,
+        vol.Optional(CONF_PASSWORD): str,
     }
 )
 
@@ -110,6 +116,8 @@ class MjpegTimelapseCamera(Camera):
         self._attr_supported_features = SUPPORT_ON_OFF
         self._attr_loop = device_info.get(CONF_LOOP, False)
         self._attr_headers = device_info.get(CONF_HEADERS, {})
+        self._attr_username = device_info.get(CONF_USERNAME, {})
+        self._attr_password = device_info.get(CONF_PASSWORD, {})
 
         if self._attr_is_on == True:
             self.start_fetching()
@@ -160,6 +168,16 @@ class MjpegTimelapseCamera(Camera):
         return self._attr_headers
 
     @property
+    def username(self):
+        """Return the basic auth username."""
+        return self._attr_username
+
+    @property
+    def password(self):
+        """Return the basic auth password."""
+        return self._attr_password
+
+    @property
     def is_recording(self):
         """Indicate whether recording or not."""
         return self._fetching_listener is not None
@@ -201,12 +219,16 @@ class MjpegTimelapseCamera(Camera):
     async def fetch_image(self, _time):
         headers = {**self.headers}
         session = async_get_clientsession(self.hass)
+        auth = None
 
         if self.last_modified:
             headers["If-Modified-Since"] = self.last_modified
 
+        if self.username is not None:
+            auth = aiohttp.BasicAuth(self.username, self.password, 'utf8')
+
         try:
-            async with session.get(self.image_url, timeout=5, headers=headers) as res:
+            async with session.get(self.image_url, timeout=5, headers=headers, auth=auth) as res:
                 res.raise_for_status()
                 self._attr_available = True
 

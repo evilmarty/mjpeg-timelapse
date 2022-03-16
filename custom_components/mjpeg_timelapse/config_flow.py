@@ -2,7 +2,11 @@ import voluptuous as vol
 from urllib.parse import urlparse
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_NAME
+from homeassistant.const import (
+    CONF_NAME,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+)
 from homeassistant.helpers import config_validation as cv
 
 from .const import (
@@ -27,6 +31,8 @@ DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_MAX_FRAMES, default=100): int,
         vol.Optional(CONF_QUALITY, default=75): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
         vol.Optional(CONF_LOOP, default=True): bool,
+        vol.Optional(CONF_USERNAME): str,
+        vol.Optional(CONF_PASSWORD): str,
     }
 )
 
@@ -67,6 +73,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors[CONF_FRAMERATE] = "below_minimum_value"
         if user_input.get(CONF_MAX_FRAMES, 0) < 1:
             errors[CONF_MAX_FRAMES] = "below_minimum_value"
+        if user_input.get(CONF_PASSWORD, '') != '' and user_input.get(CONF_USERNAME, '') == '':
+            errors[CONF_USERNAME] = "username_required"
         return errors
 
     def has_image_url(self, image_url):

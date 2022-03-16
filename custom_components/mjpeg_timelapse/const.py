@@ -11,5 +11,8 @@ CONF_FRAMERATE = "framerate"
 CONF_QUALITY = "quality"
 CONF_LOOP = "loop"
 CONF_HEADERS = "headers"
+CONF_PAUSED = "paused"
 
 SERVICE_CLEAR_IMAGES = "clear_images"
+SERVICE_PAUSE_RECORDING = "pause_recording"
+SERVICE_RESUME_RECORDING = "resume_recording"

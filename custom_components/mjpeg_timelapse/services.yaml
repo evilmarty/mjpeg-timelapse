@@ -5,3 +5,17 @@ clear_images:
     entity:
       integration: mjpeg_timelapse
       domain: camera
+pause_recording:
+  name: Pause recording
+  description: Pauses fetching and saving images.
+  target:
+    entity:
+      integration: mjpeg_timelapse
+      domain: camera
+resume_recording:
+  name: Resume recording
+  description: Resumes saving images.
+  target:
+    entity:
+      integration: mjpeg_timelapse
+      domain: camera

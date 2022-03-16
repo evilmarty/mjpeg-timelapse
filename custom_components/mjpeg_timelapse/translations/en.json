@@ -12,14 +12,17 @@
           "max_frames": "Max Frames",
           "quality": "Quality",
           "loop": "Loop Playback",
-          "headers": "Additional Headers"
+          "headers": "Additional Headers",
+          "username": "Username",
+          "password": "Password"
         }
       }
     },
     "error": {
       "already_configured": "Device is already configured",
       "invalid_url": "Invalid URL",
-      "below_minimum_value": "Must be greater than zero"
+      "below_minimum_value": "Must be greater than zero",
+      "username_required": "Must provide value"
     },
     "abort": {
       "already_configured": "Device is already configured"

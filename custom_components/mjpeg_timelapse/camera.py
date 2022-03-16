@@ -226,9 +226,9 @@ class MjpegTimelapseCamera(Camera):
                 await self.hass.async_add_executor_job(self.save_image, str(int(self.last_updated)), data)
 
         except OSError as err:
-            _LOGGER.error("Can't write image to file: %s", err)
+            _LOGGER.error("Can't write image for '%s' to file: %s", self.name, err)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-            _LOGGER.error("Failed to fetch image, %s", type(err))
+            _LOGGER.error("Failed to fetch image for '%s': %s", self.name, err)
             self._attr_available = False
 
         self.async_write_ha_state()

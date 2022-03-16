@@ -262,7 +262,7 @@ class MjpegTimelapseCamera(Camera):
             headers["If-Modified-Since"] = self.last_modified
 
         if self.username is not None:
-            auth = aiohttp.BasicAuth(self.username, self.password, 'utf8')
+            auth = aiohttp.BasicAuth(self.username, self.password, 'utf-8')
 
         try:
             async with session.get(self.image_url, timeout=5, headers=headers, auth=auth) as res:
@@ -290,7 +290,7 @@ class MjpegTimelapseCamera(Camera):
             _LOGGER.error("Failed to fetch image for '%s': %s", self.name, err)
             self._attr_available = False
 
-        await self.async_write_ha_state()
+        self.async_write_ha_state()
 
     def save_image(self, basename, data):
         try:

@@ -2,7 +2,13 @@ name: HACS Action
 
 on:
   push:
+    paths:
+      - hacs.json
+      - custom_components/mjpeg_timelapse/*
   pull_request:
+    paths:
+      - hacs.json
+      - custom_components/mjpeg_timelapse/*
   schedule:
     - cron: "0 0 * * *"
 

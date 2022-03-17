@@ -107,6 +107,16 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         {},
         "clear_images",
     )
+    platform.async_register_entity_service(
+        SERVICE_PAUSE_RECORDING,
+        {},
+        "pause_recording",
+    )
+    platform.async_register_entity_service(
+        SERVICE_RESUME_RECORDING,
+        {},
+        "resume_recording",
+    )
 
 
 class MjpegTimelapseCamera(Camera):

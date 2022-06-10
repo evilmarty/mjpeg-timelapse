@@ -19,6 +19,7 @@
       }
     },
     "error": {
+      "template_error": "Error rendering template. Review log for more info.",
       "already_configured": "Device is already configured",
       "invalid_url": "Invalid URL",
       "below_minimum_value": "Must be greater than zero",

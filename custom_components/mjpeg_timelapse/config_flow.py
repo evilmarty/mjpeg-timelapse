@@ -1,4 +1,5 @@
 import voluptuous as vol
+import logging
 from urllib.parse import urlparse
 
 from homeassistant import config_entries
@@ -7,7 +8,8 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
 )
-from homeassistant.helpers import config_validation as cv
+from homeassistant.exceptions import TemplateError
+from homeassistant.helpers import config_validation as cv, template as template_helper
 
 from .const import (
     DOMAIN,
@@ -36,6 +38,8 @@ DATA_SCHEMA = vol.Schema(
     }
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 def valid_url(url):
     result = urlparse(url)
     return result.scheme != '' and result.netloc != ''
@@ -63,10 +67,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def validate(self, user_input):
         errors = {}
         image_url = user_input[CONF_IMAGE_URL]
-        if not valid_url(image_url):
-            errors[CONF_IMAGE_URL] = "invalid_url"
-        elif self.has_image_url(image_url):
-            errors[CONF_IMAGE_URL] = "already_configured"
+        try:
+            if not isinstance(image_url, template_helper.Template):
+                image_url = template_helper.Template(image_url, self.hass)
+            image_url = image_url.async_render(parse_result=False)
+        except TemplateError as err:
+            _LOGGER.warning("Problem rendering template %s: %s", image_url, err)
+            errors[CONF_IMAGE_URL] = "template_error"
+
+        if CONF_IMAGE_URL not in errors:
+            if not valid_url(image_url):
+                errors[CONF_IMAGE_URL] = "invalid_url"
+            elif self.has_image_url(image_url):
+                errors[CONF_IMAGE_URL] = "already_configured"
         if user_input.get(CONF_FETCH_INTERVAL, 0) < 1:
             errors[CONF_FETCH_INTERVAL] = "below_minimum_value"
         if user_input.get(CONF_FRAMERATE, 0) < 1:

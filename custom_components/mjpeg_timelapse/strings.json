@@ -17,6 +17,7 @@
       }
     },
     "error": {
+      "template_error": "[%key:component::generic::config::error::template_error%]",
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
       "invalid_url": "[%key:common::config_flow::abort::invalid_url%]",
       "below_minimum_value": "[%key:common::config_flow::abort::below_minimum_value%]"

@@ -30,7 +30,11 @@ from homeassistant.const import (
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import TemplateError
-from homeassistant.helpers import config_validation as cv, entity_platform
+from homeassistant.helpers import (
+    config_validation as cv,
+    entity_platform,
+    template as template_helper,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.reload import async_setup_reload_service
 import homeassistant.util.dt as dt_util
@@ -56,7 +60,7 @@ STORAGE_VERSION = 1
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_IMAGE_URL): cv.url,
+        vol.Required(CONF_IMAGE_URL): cv.template,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_FETCH_INTERVAL, default=60.0): vol.Any(
             cv.small_float, cv.positive_int
@@ -128,9 +132,11 @@ class MjpegTimelapseCamera(Camera):
         self._fetching_listener = None
 
         self._attr_image_url = device_info[CONF_IMAGE_URL]
-        self._attr_attribution = urlparse(self._attr_image_url).netloc
+        image_url = self.image_url
+
+        self._attr_attribution = urlparse(image_url).netloc
         self._attr_name = device_info.get(CONF_NAME, self._attr_attribution)
-        self._attr_unique_id = hashlib.sha256(self._attr_image_url.encode("utf-8")).hexdigest()
+        self._attr_unique_id = hashlib.sha256(image_url.encode("utf-8")).hexdigest()
         self.image_dir = pathlib.Path(hass.config.path(CAMERA_DOMAIN)) / self._attr_unique_id
         self._attr_frame_rate = device_info.get(CONF_FRAMERATE, 2)
         self._attr_fetch_interval = dt.timedelta(seconds=device_info.get(CONF_FETCH_INTERVAL, 60))
@@ -159,7 +165,14 @@ class MjpegTimelapseCamera(Camera):
     @property
     def image_url(self):
         """Return the image url."""
-        return self._attr_image_url
+        image_url = self._attr_image_url
+        if not isinstance(image_url, template_helper.Template):
+            image_url = cv.template(image_url)
+        try:
+            image_url = image_url.async_render(parse_result=False, hass=self.hass)
+        except TemplateError as err:
+            _LOGGER.error("Error parsing template %s: %s", image_url, err)
+        return image_url
 
     @property
     def frame_rate(self):
@@ -237,7 +250,7 @@ class MjpegTimelapseCamera(Camera):
             "quality": self.quality,
             "loop": self.loop,
             "headers": self.headers,
-            "last_updated": self.last_updated
+            "last_updated": self.last_updated,
         }
 
     def start_fetching(self):

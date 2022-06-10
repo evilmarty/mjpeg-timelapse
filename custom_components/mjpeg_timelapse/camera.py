@@ -168,8 +168,9 @@ class MjpegTimelapseCamera(Camera):
         image_url = self._attr_image_url
         if not isinstance(image_url, template_helper.Template):
             image_url = cv.template(image_url)
+            image_url.hass = self.hass
         try:
-            image_url = image_url.async_render(parse_result=False, hass=self.hass)
+            image_url = image_url.async_render(parse_result=False)
         except TemplateError as err:
             _LOGGER.error("Error parsing template %s: %s", image_url, err)
         return image_url

@@ -16,7 +16,7 @@ import voluptuous as vol
 from homeassistant.components.camera import (
     DEFAULT_CONTENT_TYPE,
     PLATFORM_SCHEMA,
-    SUPPORT_ON_OFF,
+    CameraEntityFeature,
     Camera,
     async_get_still_stream,
 )
@@ -136,7 +136,7 @@ class MjpegTimelapseCamera(Camera):
         self._attr_fetch_interval = dt.timedelta(seconds=device_info.get(CONF_FETCH_INTERVAL, 60))
         self._attr_max_frames = device_info.get(CONF_MAX_FRAMES, 100)
         self._attr_quality = device_info.get(CONF_QUALITY, 100)
-        self._attr_supported_features = SUPPORT_ON_OFF
+        self._attr_supported_features = CameraEntityFeature.ON_OFF
         self._attr_loop = device_info.get(CONF_LOOP, False)
         self._attr_headers = device_info.get(CONF_HEADERS, {})
         self._attr_username = device_info.get(CONF_USERNAME, {})

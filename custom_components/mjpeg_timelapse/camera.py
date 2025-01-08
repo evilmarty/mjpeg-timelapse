@@ -26,7 +26,6 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_USERNAME,
     CONF_PASSWORD,
-    CONF_ENTITY_ID,  # Add this import
 )
 
 from homeassistant.core import HomeAssistant, callback
@@ -52,6 +51,7 @@ from .const import (
     SERVICE_RESUME_RECORDING,
     CONF_START_TIME,
     CONF_END_TIME,
+    CONF_ENTITY_ID,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,6 +66,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),
         vol.Optional(CONF_END_TIME, default="23:59"): vol.Coerce(str),
+        vol.Optional(CONF_ENTITY_ID): cv.entity_id, 
         vol.Optional(CONF_FRAMERATE, default=2): vol.Any(
             cv.small_float, cv.positive_int
         ),
@@ -75,7 +76,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_HEADERS, default={}): dict,
         vol.Optional(CONF_USERNAME): str,
         vol.Optional(CONF_PASSWORD): str,
-        vol.Optional(CONF_ENTITY_ID): cv.entity_id,  # Add entity_id to schema
     }
 )
 

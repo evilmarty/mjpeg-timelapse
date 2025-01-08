@@ -59,6 +59,12 @@ camera:
 **fetch_interval**
 - (integer)(Optional)The time interval in seconds between fetching the image. Default is 60 seconds.
 
+**start_time**
+- (time)(Optional)The time of day to start capturing images.  Useful if you only want to capture a few frames per day at a specific time.
+
+**start_time**
+- (time)(Optional)The time of day to stop capturing images.  
+ 
 **max_frames**
 - (integer)(Optional)The number of frames to keep. Default is 100.
 

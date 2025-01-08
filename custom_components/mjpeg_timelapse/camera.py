@@ -49,6 +49,8 @@ from .const import (
     SERVICE_CLEAR_IMAGES,
     SERVICE_PAUSE_RECORDING,
     SERVICE_RESUME_RECORDING,
+    CONF_START_TIME,
+    CONF_END_TIME,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,6 +63,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_FETCH_INTERVAL, default=60.0): vol.Any(
             cv.small_float, cv.positive_int
         ),
+        vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),
+        vol.Optional(CONF_END_TIME, default="23:59"): vol.Coerce(str),
         vol.Optional(CONF_FRAMERATE, default=2): vol.Any(
             cv.small_float, cv.positive_int
         ),
@@ -72,7 +76,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_PASSWORD): str,
     }
 )
-
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Setup Mjpeg Timelapse from a config entry."""
@@ -96,7 +99,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "resume_recording",
     )
 
-
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Setup Mjpeg Timelapse Camera"""
     async_add_entities([MjpegTimelapseCamera(hass, config)])
@@ -117,7 +119,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         {},
         "resume_recording",
     )
-
 
 class MjpegTimelapseCamera(Camera):
     def __init__(self, hass, device_info):
@@ -142,6 +143,10 @@ class MjpegTimelapseCamera(Camera):
         self._attr_username = device_info.get(CONF_USERNAME, {})
         self._attr_password = device_info.get(CONF_PASSWORD, {})
         self._attr_is_paused = device_info.get(CONF_PAUSED, False)
+
+        # Convert string times to datetime.time objects
+        self._attr_start_time = dt.datetime.strptime(device_info.get(CONF_START_TIME, "00:00"), "%H:%M").time()
+        self._attr_end_time = dt.datetime.strptime(device_info.get(CONF_END_TIME, "23:59"), "%H:%M").time()
 
         if self._attr_is_on == True:
             self.start_fetching()
@@ -237,7 +242,9 @@ class MjpegTimelapseCamera(Camera):
             "quality": self.quality,
             "loop": self.loop,
             "headers": self.headers,
-            "last_updated": self.last_updated
+            "last_updated": self.last_updated,
+            "start_time": self._attr_start_time.strftime("%H:%M"),
+            "end_time": self._attr_end_time.strftime("%H:%M"),
         }
 
     def start_fetching(self):
@@ -264,6 +271,13 @@ class MjpegTimelapseCamera(Camera):
         self.schedule_update_ha_state()
 
     async def fetch_image(self, _time):
+        # Check if the current time is within the specified start and end time
+        now = dt_util.now().time()
+        _LOGGER.debug("Current time: %s, Start time: %s, End time: %s", now, self._attr_start_time, self._attr_end_time)
+        if not (self._attr_start_time <= now <= self._attr_end_time):
+            _LOGGER.debug("Current time %s is not within the time window %s - %s", now, self._attr_start_time, self._attr_end_time)
+            return
+
         headers = {**self.headers}
         session = async_get_clientsession(self.hass)
         auth = None
@@ -368,4 +382,3 @@ class MjpegTimelapseCamera(Camera):
     async def async_removed_from_registry(self):
         self.stop_fetching()
         await self.clear_images()
-

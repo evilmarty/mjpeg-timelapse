@@ -26,6 +26,7 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_USERNAME,
     CONF_PASSWORD,
+    CONF_ENTITY_ID,  # Add this import
 )
 
 from homeassistant.core import HomeAssistant, callback
@@ -74,6 +75,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_HEADERS, default={}): dict,
         vol.Optional(CONF_USERNAME): str,
         vol.Optional(CONF_PASSWORD): str,
+        vol.Optional(CONF_ENTITY_ID): cv.entity_id,  # Add entity_id to schema
     }
 )
 
@@ -143,6 +145,7 @@ class MjpegTimelapseCamera(Camera):
         self._attr_username = device_info.get(CONF_USERNAME, {})
         self._attr_password = device_info.get(CONF_PASSWORD, {})
         self._attr_is_paused = device_info.get(CONF_PAUSED, False)
+        self._attr_entity_id = device_info.get(CONF_ENTITY_ID)  # Store entity_id
 
         # Convert string times to datetime.time objects
         self._attr_start_time = dt.datetime.strptime(device_info.get(CONF_START_TIME, "00:00"), "%H:%M").time()
@@ -245,6 +248,7 @@ class MjpegTimelapseCamera(Camera):
             "last_updated": self.last_updated,
             "start_time": self._attr_start_time.strftime("%H:%M"),
             "end_time": self._attr_end_time.strftime("%H:%M"),
+            "entity_id": self._attr_entity_id,  # Add entity_id to state attributes
         }
 
     def start_fetching(self):
@@ -277,6 +281,13 @@ class MjpegTimelapseCamera(Camera):
         if not (self._attr_start_time <= now <= self._attr_end_time):
             _LOGGER.debug("Current time %s is not within the time window %s - %s", now, self._attr_start_time, self._attr_end_time)
             return
+
+        # Check if the entity_id is on
+        if self._attr_entity_id:
+            entity_state = self.hass.states.get(self._attr_entity_id)
+            if entity_state.state != "on":
+                _LOGGER.debug("Entity '%s' is not on", self._attr_entity_id)
+                return
 
         headers = {**self.headers}
         session = async_get_clientsession(self.hass)

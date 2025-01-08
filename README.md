@@ -40,6 +40,8 @@ camera:
     image_url: http://example.com/foobar.gif
     name: Example
     fetch_interval: 30
+    start_time: 00:00
+    end_time: 23:59:59
     max_frames: 10
     framerate: 3
     quality: 50

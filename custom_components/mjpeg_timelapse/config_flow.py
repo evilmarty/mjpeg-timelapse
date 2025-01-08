@@ -6,6 +6,7 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_USERNAME,
     CONF_PASSWORD,
+    CONF_ENTITY_ID,  # Add this import
 )
 from homeassistant.helpers import config_validation as cv
 
@@ -31,6 +32,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_FETCH_INTERVAL, default=60): int,
         vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),
         vol.Optional(CONF_END_TIME, default="23:59:59"): vol.Coerce(str),
+        vol.Optional(CONF_ENTITY_ID): cv.entity_id,  # Add entity_id to schema
         vol.Optional(CONF_FRAMERATE, default=2): int,
         vol.Optional(CONF_MAX_FRAMES, default=100): int,
         vol.Optional(CONF_QUALITY, default=75): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
@@ -82,6 +84,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_FETCH_INTERVAL, default=current_data.get(CONF_FETCH_INTERVAL, 60)): int,
                 vol.Optional(CONF_START_TIME, default=current_data.get(CONF_START_TIME, "00:00:00")): vol.Coerce(str),
                 vol.Optional(CONF_END_TIME, default=current_data.get(CONF_END_TIME, "23:59:59")): vol.Coerce(str),
+                vol.Optional(CONF_ENTITY_ID, default=current_data.get(CONF_ENTITY_ID, "")): cv.entity_id,  # Add entity_id to options schema
                 vol.Optional(CONF_FRAMERATE, default=current_data.get(CONF_FRAMERATE, 2)): int,
                 vol.Optional(CONF_MAX_FRAMES, default=current_data.get(CONF_MAX_FRAMES, 100)): int,
                 vol.Optional(CONF_QUALITY, default=current_data.get(CONF_QUALITY, 75)): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),

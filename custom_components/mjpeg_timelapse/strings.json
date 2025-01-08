@@ -8,6 +8,8 @@
           "image_url": "Image URL",
           "name": "[%key:common::config_flow::data::name%]",
           "framerate": "Framerate",
+          "start_time": "Start Time",
+          "end_time": "End Time",
           "fetch_interval": "Fetch Interval",
           "max_frames": "Max Frames",
           "quality": "Quality",

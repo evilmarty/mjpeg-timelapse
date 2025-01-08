@@ -4,8 +4,6 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SERVICE_CLEAR_IMAGES,
-    CONF_START_TIME,
-    CONF_END_TIME,
 )
 
 async def async_setup_entry(hass, entry):

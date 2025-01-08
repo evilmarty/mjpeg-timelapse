@@ -6,7 +6,6 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_USERNAME,
     CONF_PASSWORD,
-    CONF_ENTITY_ID,  # Add this import
 )
 from homeassistant.helpers import config_validation as cv
 
@@ -22,6 +21,7 @@ from .const import (
     CONF_HEADERS,
     CONF_START_TIME,
     CONF_END_TIME,
+    CONF_ENTITY_ID,  # Add this import
 )
 
 # Use vol.Coerce(str) to ensure start_time and end_time are strings

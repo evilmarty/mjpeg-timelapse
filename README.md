@@ -62,7 +62,7 @@ camera:
 **start_time**
 - (time)(Optional)The time of day to start capturing images.  Useful if you only want to capture a few frames per day at a specific time.
 
-**start_time**
+**end_time**
 - (time)(Optional)The time of day to stop capturing images.  
  
 **max_frames**

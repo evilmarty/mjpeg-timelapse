@@ -10,7 +10,6 @@
           "framerate": "Framerate",
           "start_time": "Start Time",
           "end_time": "End Time",
-          "entity_id": "Entity Id",
           "fetch_interval": "Fetch Interval",
           "max_frames": "Max Frames",
           "quality": "Quality",

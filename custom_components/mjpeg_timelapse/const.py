@@ -18,7 +18,6 @@ CONF_PAUSED = "paused"
 # New configuration keys
 CONF_START_TIME = "start_time"
 CONF_END_TIME = "end_time"
-CONF_ENTITY_ID = "entity_id"
 
 # Default values
 DEFAULT_NAME = "Mjpeg Timelapse"

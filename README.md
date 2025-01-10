@@ -9,6 +9,13 @@
 
 Provides a simple camera platform that captures the image for playback. This is similar to the Generic IP Camera platform but captures and stores the image periodically to playback as a MJPEG video.
 
+## New Features
+
+### Time Window
+Specify a start and end time for when images will be captured.  Useful for capturing images every day at a specific time (e.g noon) or during working hours.
+### Enabling Entity
+Specify a sensor (binary_sensor, sensor, or input_text domains) that must be on (true) for the image to capture.  Useful for only capturing during motion events or when lux is above a certain level.   Hint - use a template sensor to read another sensor such that it's output is true or false when the conditions are met. 
+
 ## Installation
 
 There are two ways this integration can be installed into [Home Assistant](https://www.home-assistant.io).
@@ -65,7 +72,10 @@ camera:
 - (time)(Optional)The time of day to start capturing images.  Useful if you only want to capture a few frames per day at a specific time.
 
 **end_time**
-- (time)(Optional)The time of day to stop capturing images.  
+- (time)(Optional)The time of day to stop capturing images.
+
+**enabling_entity_id**
+- (string)(Optional)Sensor name (binary_sensor, sensor, or input_text) that must be on (true) for the capture to occur.
  
 **max_frames**
 - (integer)(Optional)The number of frames to keep. Default is 100.

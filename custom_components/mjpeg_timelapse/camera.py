@@ -51,7 +51,11 @@ from .const import (
     SERVICE_RESUME_RECORDING,
     CONF_START_TIME,
     CONF_END_TIME,
+    CONF_ENABLING_ENTITY_ID,
+    DEFAULT_ENABLING_ENTITY_ID,
 )
+
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval  # Corrected import
 
 _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
@@ -63,8 +67,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_FETCH_INTERVAL, default=60.0): vol.Any(
             cv.small_float, cv.positive_int
         ),
-        vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),
+        vol.Optional(CONF_START_TIME, default="00:00:00"): vol.Coerce(str),
         vol.Optional(CONF_END_TIME, default="23:59:59"): vol.Coerce(str),
+        vol.Optional(CONF_ENABLING_ENTITY_ID, default=DEFAULT_ENABLING_ENTITY_ID): cv.string, 
         vol.Optional(CONF_FRAMERATE, default=2): vol.Any(
             cv.small_float, cv.positive_int
         ),
@@ -145,11 +150,150 @@ class MjpegTimelapseCamera(Camera):
         self._attr_is_paused = device_info.get(CONF_PAUSED, False)
 
         # Convert string times to datetime.time objects
-        self._attr_start_time = dt.datetime.strptime(device_info.get(CONF_START_TIME, "00:00"), "%H:%M").time()
-        self._attr_end_time = dt.datetime.strptime(device_info.get(CONF_END_TIME, "23:59"), "%H:%M").time()
+        self._attr_start_time = dt.datetime.strptime(device_info.get(CONF_START_TIME, "00:00:00"), "%H:%M:%S").time()
+        self._attr_end_time = dt.datetime.strptime(device_info.get(CONF_END_TIME, "23:59:59"), "%H:%M:%S").time()
+
+        self._attr_enabling_entity_id = device_info.get(CONF_ENABLING_ENTITY_ID, DEFAULT_ENABLING_ENTITY_ID)
+
+        # Add a state listener if enabling entity id is specified
+        if self._attr_enabling_entity_id:
+            async_track_state_change_event(
+                self.hass, [self._attr_enabling_entity_id], self._enabling_entity_changed
+            )
 
         if self._attr_is_on == True:
             self.start_fetching()
+
+    async def _enabling_entity_changed(self, event):
+        """Handle state changes of the enabling entity."""
+        new_state = event.data.get("new_state")
+        if new_state and new_state.state == "on":
+            self.start_fetching()
+        else:
+            self.stop_fetching()
+
+    async def fetch_image(self, _time):
+        # Check if the current time is within the specified start and end time
+        now = dt_util.now().time()
+        if not (self._attr_start_time <= now <= self._attr_end_time):
+            return
+
+        # Check the state of the enabling entity if it is specified
+        if self._attr_enabling_entity_id:
+            state = self.hass.states.get(self._attr_enabling_entity_id)
+            if state is None or state.state != "on":
+                return
+
+        headers = {**self.headers}
+        session = async_get_clientsession(self.hass)
+        auth = None
+
+        if self.last_modified:
+            headers["If-Modified-Since"] = self.last_modified
+
+        if self.username is not None:
+            auth = aiohttp.BasicAuth(self.username, self.password, 'utf-8')
+
+        try:
+            async with session.get(self.image_url, timeout=5, headers=headers, auth=auth) as res:
+                res.raise_for_status()
+                self._attr_available = True
+
+                if res.status == 304:
+                    return
+
+                last_modified = res.headers.get("Last-Modified")
+                if last_modified:
+                    self.last_modified = last_modified
+                    last_modified = dt.datetime(*eut.parsedate(last_modified)[:6])
+
+                data = await res.read()
+                self.last_updated = dt_util.as_timestamp(dt_util.as_utc(last_modified or dt_util.utcnow()))
+                await self.hass.async_add_executor_job(self.save_image, str(int(self.last_updated)), data)
+
+        except OSError as err:
+            _LOGGER.error("Can't write image for '%s' to file: %s", self.name, err)
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.error("Failed to fetch image for '%s': %s", self.name, err)
+            self._attr_available = False
+
+        self.async_write_ha_state()
+
+    def start_fetching(self):
+        if self._fetching_listener is None:
+            self._fetching_listener = async_track_time_interval(
+                self.hass, self.fetch_image, self._attr_fetch_interval
+            )
+
+    def stop_fetching(self):
+        if self._fetching_listener:
+            self._fetching_listener()
+            self._fetching_listener = None
+
+    async def handle_async_mjpeg_stream(self, request):
+        def get_images():
+            if self.loop:
+                return itertools.cycle(self.image_filenames())
+            else:
+                return iter(self.image_filenames())
+
+        images = get_images()
+
+        async def next_image():
+            nonlocal images
+
+            try:
+                while self.is_on:
+                    try:
+                        with open(next(images), "rb") as file:
+                            return file.read()
+                    except FileNotFoundError:
+                        images = get_images()
+            except StopIteration:
+                return None
+
+        return await async_get_still_stream(request, next_image, DEFAULT_CONTENT_TYPE, self.frame_interval)
+
+    def save_image(self, basename, data):
+        try:
+            image = Image.open(io.BytesIO(data)).convert('RGB')
+        except UnidentifiedImageError as err:
+            raise vol.Invalid("Unable to identify image file") from err
+
+        self.image_dir.mkdir(parents=True, exist_ok=True)
+        media_file = self.image_dir / "{}.jpg".format(basename)
+
+        with media_file.open("wb") as target:
+            image.save(target, "JPEG", quality=self.quality)
+
+        self.cleanup()
+
+    def cleanup(self):
+        """Removes excess images."""
+        images = self.image_filenames()
+        total_frames = len(images)
+        d = total_frames > self.max_frames and total_frames - self.max_frames or 0
+        for file in images[:d]:
+            file.unlink(missing_ok=True)
+
+    def clear_images(self):
+        """Remove all images."""
+        return self.hass.async_add_executor_job(shutil.rmtree, self.image_dir)
+
+    def image_filenames(self):
+        return sorted(self.image_dir.glob("*.jpg"))
+
+    def camera_image(self):
+        try:
+            last_image = self.image_filenames().pop()
+            with open(last_image, "rb") as file:
+                return file.read()
+        except IndexError as err:
+            return None
+
+    async def async_removed_from_registry(self):
+        self.stop_fetching()
+        await self.clear_images()
 
     @property
     def should_poll(self):
@@ -243,20 +387,9 @@ class MjpegTimelapseCamera(Camera):
             "loop": self.loop,
             "headers": self.headers,
             "last_updated": self.last_updated,
-            "start_time": self._attr_start_time.strftime("%H:%M"),
-            "end_time": self._attr_end_time.strftime("%H:%M"),
+            "start_time": self._attr_start_time.strftime("%H:%M:%S"),
+            "end_time": self._attr_end_time.strftime("%H:%M:%S"),
         }
-
-    def start_fetching(self):
-        """Start fetching images periodically."""
-        if self._fetching_listener is None:
-            self._fetching_listener = self.hass.helpers.event.async_track_time_interval(self.fetch_image, self.fetch_interval)
-
-    def stop_fetching(self):
-        """Stop fetching images."""
-        if self._fetching_listener is not None:
-            self._fetching_listener()
-            self._fetching_listener = None
 
     def pause_recording(self):
         """Pause recording images."""
@@ -269,116 +402,3 @@ class MjpegTimelapseCamera(Camera):
         self.start_fetching()
         self._attr_is_paused = False
         self.schedule_update_ha_state()
-
-    async def fetch_image(self, _time):
-        # Check if the current time is within the specified start and end time
-        now = dt_util.now().time()
-        _LOGGER.debug("Current time: %s, Start time: %s, End time: %s", now, self._attr_start_time, self._attr_end_time)
-        if not (self._attr_start_time <= now <= self._attr_end_time):
-            _LOGGER.debug("Current time %s is not within the time window %s - %s", now, self._attr_start_time, self._attr_end_time)
-            return
-
-        headers = {**self.headers}
-        session = async_get_clientsession(self.hass)
-        auth = None
-
-        if self.last_modified:
-            headers["If-Modified-Since"] = self.last_modified
-
-        if self.username is not None:
-            auth = aiohttp.BasicAuth(self.username, self.password, 'utf-8')
-
-        try:
-            async with session.get(self.image_url, timeout=5, headers=headers, auth=auth) as res:
-                res.raise_for_status()
-                self._attr_available = True
-
-                if res.status == 304:
-                    _LOGGER.debug("HTTP 304 - success")
-                    return
-
-                last_modified = res.headers.get("Last-Modified")
-                if last_modified:
-                    self.last_modified = last_modified
-                    last_modified = dt.datetime(*eut.parsedate(last_modified)[:6])
-
-                data = await res.read()
-                _LOGGER.debug("HTTP %d - Last-Modified: %s", res.status, self.last_modified)
-
-                self.last_updated = dt_util.as_timestamp(dt_util.as_utc(last_modified or dt_util.utcnow()))
-                await self.hass.async_add_executor_job(self.save_image, str(int(self.last_updated)), data)
-
-        except OSError as err:
-            _LOGGER.error("Can't write image for '%s' to file: %s", self.name, err)
-        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-            _LOGGER.error("Failed to fetch image for '%s': %s", self.name, err)
-            self._attr_available = False
-
-        self.async_write_ha_state()
-
-    def save_image(self, basename, data):
-        try:
-            image = Image.open(io.BytesIO(data)).convert('RGB')
-        except UnidentifiedImageError as err:
-            raise vol.Invalid("Unable to identify image file") from err
-
-        self.image_dir.mkdir(parents=True, exist_ok=True)
-        media_file = self.image_dir / "{}.jpg".format(basename)
-
-        _LOGGER.debug("Storing file %s", media_file)
-
-        with media_file.open("wb") as target:
-            image.save(target, "JPEG", quality=self.quality)
-
-        self.cleanup()
-
-    def cleanup(self):
-        """Removes excess images."""
-        images = self.image_filenames()
-        total_frames = len(images)
-        d = total_frames > self.max_frames and total_frames - self.max_frames or 0
-        for file in images[:d]:
-            file.unlink(missing_ok=True)
-
-    def clear_images(self):
-        """Remove all images."""
-        return self.hass.async_add_executor_job(shutil.rmtree, self.image_dir)
-
-    def image_filenames(self):
-        return sorted(self.image_dir.glob("*.jpg"))
-
-    def camera_image(self):
-        try:
-            last_image = self.image_filenames().pop()
-            with open(last_image, "rb") as file:
-                return file.read()
-        except IndexError as err:
-            return None
-
-    async def handle_async_mjpeg_stream(self, request):
-        def get_images():
-            if self.loop:
-                return itertools.cycle(self.image_filenames())
-            else:
-                return iter(self.image_filenames())
-
-        images = get_images()
-
-        async def next_image():
-            nonlocal images
-
-            try:
-                while self.is_on:
-                    try:
-                        with open(next(images), "rb") as file:
-                            return file.read()
-                    except FileNotFoundError:
-                        images = get_images()
-            except StopIteration:
-                return None
-
-        return await async_get_still_stream(request, next_image, DEFAULT_CONTENT_TYPE, self.frame_interval)
-
-    async def async_removed_from_registry(self):
-        self.stop_fetching()
-        await self.clear_images()

@@ -10,11 +10,20 @@
           "framerate": "Framerate",
           "start_time": "Start Time",
           "end_time": "End Time",
+          "enabling_entity_id": "Enabling Entity",
           "fetch_interval": "Fetch Interval",
           "max_frames": "Max Frames",
           "quality": "Quality",
           "loop": "Loop Playback",
-          "headers": "Additional Headers"
+          "headers": "Additional Headers",
+          "use_enabling_entity": "Use Enabling Entity"
+        }
+      },
+      "entity_selector": {
+        "title": "Select Enabling Entity",
+        "description": "Select the enabling entity for the timelapse.",
+        "data": {
+          "enabling_entity_id": "Enabling Entity"
         }
       }
     },

@@ -30,8 +30,8 @@ DEFAULT_LOOP = True
 DEFAULT_ENABLING_ENTITY_ID = ""
 
 # Default values for new configuration keys
-DEFAULT_START_TIME = time(0, 0, 0)  # Default to 00:00
-DEFAULT_END_TIME = time(23, 59, 59)  # Default to 23:59:59
+DEFAULT_START_TIME = time(0, 0)  # Default to 00:00
+DEFAULT_END_TIME = time(23, 59)  # Default to 23:59
 
 # Services
 SERVICE_CLEAR_IMAGES = "clear_images"

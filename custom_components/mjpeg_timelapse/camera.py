@@ -55,7 +55,7 @@ from .const import (
     DEFAULT_ENABLING_ENTITY_ID,
 )
 
-from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval  # Corrected import
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
 _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
@@ -67,8 +67,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_FETCH_INTERVAL, default=60.0): vol.Any(
             cv.small_float, cv.positive_int
         ),
-        vol.Optional(CONF_START_TIME, default="00:00:00"): vol.Coerce(str),
-        vol.Optional(CONF_END_TIME, default="23:59:59"): vol.Coerce(str),
+        vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),  # Updated default
+        vol.Optional(CONF_END_TIME, default="23:59"): vol.Coerce(str),    # Updated default
         vol.Optional(CONF_ENABLING_ENTITY_ID, default=DEFAULT_ENABLING_ENTITY_ID): cv.string, 
         vol.Optional(CONF_FRAMERATE, default=2): vol.Any(
             cv.small_float, cv.positive_int
@@ -150,8 +150,8 @@ class MjpegTimelapseCamera(Camera):
         self._attr_is_paused = device_info.get(CONF_PAUSED, False)
 
         # Convert string times to datetime.time objects
-        self._attr_start_time = dt.datetime.strptime(device_info.get(CONF_START_TIME, "00:00:00"), "%H:%M:%S").time()
-        self._attr_end_time = dt.datetime.strptime(device_info.get(CONF_END_TIME, "23:59:59"), "%H:%M:%S").time()
+        self._attr_start_time = self._parse_time(device_info.get(CONF_START_TIME, "00:00"))
+        self._attr_end_time = self._parse_time(device_info.get(CONF_END_TIME, "23:59"))
 
         self._attr_enabling_entity_id = device_info.get(CONF_ENABLING_ENTITY_ID, DEFAULT_ENABLING_ENTITY_ID)
 
@@ -163,6 +163,13 @@ class MjpegTimelapseCamera(Camera):
 
         if self._attr_is_on == True:
             self.start_fetching()
+
+    def _parse_time(self, time_str):
+        """Parse a time string and return a time object, accepting both HH:MM and HH:MM:SS formats."""
+        try:
+            return dt.datetime.strptime(time_str, "%H:%M:%S").time()
+        except ValueError:
+            return dt.datetime.strptime(time_str, "%H:%M").time()
 
     async def _enabling_entity_changed(self, event):
         """Handle state changes of the enabling entity."""
@@ -387,7 +394,7 @@ class MjpegTimelapseCamera(Camera):
             "loop": self.loop,
             "headers": self.headers,
             "last_updated": self.last_updated,
-            "start_time": self._attr_start_time.strftime("%H:%M:%S"),
+            "start_time": self._attr_start_time.strftime("%H:%M"),
             "end_time": self._attr_end_time.strftime("%H:%M:%S"),
         }
 

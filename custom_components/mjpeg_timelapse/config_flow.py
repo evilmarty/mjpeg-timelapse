@@ -28,8 +28,8 @@ INITIAL_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_IMAGE_URL): str,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
         vol.Optional(CONF_FETCH_INTERVAL, default=60): int,
-        vol.Optional(CONF_START_TIME, default="00:00:00"): vol.Coerce(str),
-        vol.Optional(CONF_END_TIME, default="23:59:59"): vol.Coerce(str),
+        vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),  # Updated default
+        vol.Optional(CONF_END_TIME, default="23:59"): vol.Coerce(str),    # Updated default
         vol.Optional("use_enabling_entity", default=False): bool,  # Checkbox for enabling entity
         vol.Optional(CONF_FRAMERATE, default=2): int,
         vol.Optional(CONF_MAX_FRAMES, default=100): int,

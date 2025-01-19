@@ -14,7 +14,10 @@ Provides a simple camera platform that captures the image for playback. This is 
 ### Time Window
 Specify a start and end time for when images will be captured.  Useful for capturing images every day at a specific time (e.g noon) or during working hours.
 ### Enabling Entity
-Specify a sensor (binary_sensor, sensor, or input_text domains) that must be on (true) for the image to capture.  Useful for only capturing during motion events or when lux is above a certain level.   Hint - use a template sensor to read another sensor such that it's output is true or false when the conditions are met. 
+Specify a sensor (binary_sensor, sensor, or input_text domains) that must be on (true) frames to be captured.  Example use cases include only capturing frames dring motion events or when lux is above a certain level.   Hint - use a template sensor to read another sensor such that its output is true when the desired capture conditions are met.  It's also helpful to set a high fetch_interval rate (e.g. 1 frame per second) and a high frame_rate (e.g. 15 frames per second) if only capturing frames when the enabling entity is a motion sensor, especially if you specify a short max duration (below).
+### Max Duration (Minutes)
+Specifying an enabling entity makes it virtually impossible to calculate the effective length of the MJPEG using frames.  When specifying an enabling entity, Max Duration effectively becomes a rolling time window. As such you can create MJPEG loops of a maximum duration that only contain images when the enabling entity is true.  If the enabling entity is false, the frames outside the current specified duration will be left intact until new frames are captured.
+
 
 ## Installation
 
@@ -49,6 +52,7 @@ camera:
     fetch_interval: 30
     start_time: 00:00
     end_time: 23:59:59
+    max_duration_minutes: 1440 # 24 hours
     max_frames: 10
     framerate: 3
     quality: 50

@@ -28,12 +28,12 @@ DEFAULT_FRAMERATE = 2
 DEFAULT_MAX_FRAMES = 100
 DEFAULT_QUALITY = 75
 DEFAULT_LOOP = True
+
+#New default values
+DEFAULT_START_TIME = time(0, 0)  # Default to 00:00
+DEFAULT_END_TIME = time(23, 59, 59)  # Default to 23:59:59
 DEFAULT_ENABLING_ENTITY_ID = ""
 DEFAULT_MAX_DURATION_MINUTES = 1440  # Default to 24 hours (new default value)
-
-# Default values for new configuration keys
-DEFAULT_START_TIME = time(0, 0)  # Default to 00:00
-DEFAULT_END_TIME = time(23, 59)  # Default to 23:59
 
 # Services
 SERVICE_CLEAR_IMAGES = "clear_images"

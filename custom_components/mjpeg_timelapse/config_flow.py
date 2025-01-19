@@ -72,6 +72,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),  # Updated default
         vol.Optional(CONF_END_TIME, default="23:59"): vol.Coerce(str),    # Updated default
+        vol.Optional(CONF_MAX_DURATION_MINUTES, default=DEFAULT_MAX_DURATION_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional(CONF_ENABLING_ENTITY_ID, default=DEFAULT_ENABLING_ENTITY_ID): cv.string, 
         vol.Optional(CONF_FRAMERATE, default=2): vol.Any(
             cv.small_float, cv.positive_int
@@ -82,7 +83,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_HEADERS, default={}): dict,
         vol.Optional(CONF_USERNAME): str,
         vol.Optional(CONF_PASSWORD): str,
-        vol.Optional(CONF_MAX_DURATION_MINUTES, default=DEFAULT_MAX_DURATION_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),  # New field
     }
 )
 

@@ -20,6 +20,8 @@ from .const import (
     CONF_START_TIME,
     CONF_END_TIME,
     CONF_ENABLING_ENTITY_ID,
+    CONF_MAX_DURATION_MINUTES,  # Import the new constant
+    DEFAULT_MAX_DURATION_MINUTES,  # Import the default value
 )
 
 # Initial schema with the checkbox to indicate enabling entity usage
@@ -37,6 +39,7 @@ INITIAL_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_LOOP, default=True): bool,
         vol.Optional(CONF_USERNAME): str,
         vol.Optional(CONF_PASSWORD): str,
+        vol.Optional(CONF_MAX_DURATION_MINUTES, default=DEFAULT_MAX_DURATION_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),  # New field
     }
 )
 
@@ -124,6 +127,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors[CONF_MAX_FRAMES] = "below_minimum_value"
             if user_input.get(CONF_PASSWORD, '') != '' and user_input.get(CONF_USERNAME, '') == '':
                 errors[CONF_USERNAME] = "username_required"
+            if user_input.get(CONF_MAX_DURATION_MINUTES, DEFAULT_MAX_DURATION_MINUTES) < 1:
+                errors[CONF_MAX_DURATION_MINUTES] = "below_minimum_value"
         else:
             # Validate only enabling entity in the second step
             if user_input.get(CONF_ENABLING_ENTITY_ID) and not user_input[CONF_ENABLING_ENTITY_ID]:

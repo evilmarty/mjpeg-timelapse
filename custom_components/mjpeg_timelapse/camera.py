@@ -53,6 +53,8 @@ from .const import (
     CONF_END_TIME,
     CONF_ENABLING_ENTITY_ID,
     DEFAULT_ENABLING_ENTITY_ID,
+    CONF_MAX_DURATION_MINUTES,  # Import the new constant
+    DEFAULT_MAX_DURATION_MINUTES,  # Import the default value
 )
 
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
@@ -79,6 +81,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_HEADERS, default={}): dict,
         vol.Optional(CONF_USERNAME): str,
         vol.Optional(CONF_PASSWORD): str,
+        vol.Optional(CONF_MAX_DURATION_MINUTES, default=DEFAULT_MAX_DURATION_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),  # New field
     }
 )
 
@@ -154,6 +157,12 @@ class MjpegTimelapseCamera(Camera):
         self._attr_end_time = self._parse_time(device_info.get(CONF_END_TIME, "23:59"))
 
         self._attr_enabling_entity_id = device_info.get(CONF_ENABLING_ENTITY_ID, DEFAULT_ENABLING_ENTITY_ID)
+
+        # New attribute for max duration in minutes
+        self._attr_max_duration_minutes = device_info.get(CONF_MAX_DURATION_MINUTES, DEFAULT_MAX_DURATION_MINUTES)
+        # Calculate buffer size based on max duration and frame rate
+        self.buffer_size = self._attr_max_duration_minutes * 60 * self._attr_frame_rate
+        self.frame_buffer = deque(maxlen=self.buffer_size)
 
         # Add a state listener if enabling entity id is specified
         if self._attr_enabling_entity_id:
@@ -396,6 +405,7 @@ class MjpegTimelapseCamera(Camera):
             "last_updated": self.last_updated,
             "start_time": self._attr_start_time.strftime("%H:%M"),
             "end_time": self._attr_end_time.strftime("%H:%M:%S"),
+            "max_duration_minutes": self._attr_max_duration_minutes,  # New attribute
         }
 
     def pause_recording(self):
@@ -405,7 +415,7 @@ class MjpegTimelapseCamera(Camera):
         self.schedule_update_ha_state()
 
     def resume_recording(self):
-        """Pause recording images."""
+        """Resume recording images."""
         self.start_fetching()
         self._attr_is_paused = False
         self.schedule_update_ha_state()

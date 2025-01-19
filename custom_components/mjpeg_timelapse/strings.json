@@ -10,6 +10,7 @@
           "framerate": "Framerate",
           "start_time": "Start Time",
           "end_time": "End Time",
+          "max_duration_minutes": "Max Duration (minutes)",
           "enabling_entity_id": "Enabling Entity",
           "fetch_interval": "Fetch Interval",
           "max_frames": "Max Frames",

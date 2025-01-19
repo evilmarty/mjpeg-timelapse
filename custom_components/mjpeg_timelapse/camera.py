@@ -8,6 +8,7 @@ import shutil
 import hashlib
 import itertools
 from urllib.parse import urlparse
+from collections import deque  # Add this import
 
 from PIL import Image, UnidentifiedImageError
 import aiohttp
@@ -160,9 +161,6 @@ class MjpegTimelapseCamera(Camera):
 
         # New attribute for max duration in minutes
         self._attr_max_duration_minutes = device_info.get(CONF_MAX_DURATION_MINUTES, DEFAULT_MAX_DURATION_MINUTES)
-        # Calculate buffer size based on max duration and frame rate
-        self.buffer_size = self._attr_max_duration_minutes * 60 * self._attr_frame_rate
-        self.frame_buffer = deque(maxlen=self.buffer_size)
 
         # Add a state listener if enabling entity id is specified
         if self._attr_enabling_entity_id:
@@ -227,6 +225,9 @@ class MjpegTimelapseCamera(Camera):
                 self.last_updated = dt_util.as_timestamp(dt_util.as_utc(last_modified or dt_util.utcnow()))
                 await self.hass.async_add_executor_job(self.save_image, str(int(self.last_updated)), data)
 
+                # Clean up old frames based on the max duration
+                self.cleanup_old_frames()
+
         except OSError as err:
             _LOGGER.error("Can't write image for '%s' to file: %s", self.name, err)
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
@@ -234,6 +235,17 @@ class MjpegTimelapseCamera(Camera):
             self._attr_available = False
 
         self.async_write_ha_state()
+
+    def cleanup_old_frames(self):
+        """Remove frames older than the max duration."""
+        current_time = dt_util.utcnow().timestamp()
+        max_age = self._attr_max_duration_minutes * 60  # Convert minutes to seconds
+
+        for file in self.image_filenames():
+            timestamp = file.stem  # Assuming the file name is the timestamp
+            file_time = dt.datetime.fromtimestamp(int(timestamp))
+            if (current_time - file_time.timestamp()) > max_age:
+                file.unlink(missing_ok=True)
 
     def start_fetching(self):
         if self._fetching_listener is None:
@@ -285,7 +297,7 @@ class MjpegTimelapseCamera(Camera):
         self.cleanup()
 
     def cleanup(self):
-        """Removes excess images."""
+        """Removes excess images based on max frames."""
         images = self.image_filenames()
         total_frames = len(images)
         d = total_frames > self.max_frames and total_frames - self.max_frames or 0

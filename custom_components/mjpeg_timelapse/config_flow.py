@@ -1,3 +1,5 @@
+# config_flow.py
+
 import voluptuous as vol
 from urllib.parse import urlparse
 from homeassistant import config_entries
@@ -20,8 +22,7 @@ from .const import (
     CONF_START_TIME,
     CONF_END_TIME,
     CONF_ENABLING_ENTITY_ID,
-    CONF_MAX_DURATION_MINUTES, 
-    DEFAULT_MAX_DURATION_MINUTES, 
+    CONF_MAX_DURATION_MINUTES,
 )
 
 # Initial schema with the checkbox to indicate enabling entity usage
@@ -30,9 +31,9 @@ INITIAL_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_IMAGE_URL): str,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
         vol.Optional(CONF_FETCH_INTERVAL, default=60): int,
-        vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),  
-        vol.Optional(CONF_END_TIME, default="23:59"): vol.Coerce(str),    
-        vol.Optional(CONF_MAX_DURATION_MINUTES, default=DEFAULT_MAX_DURATION_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
+        vol.Optional(CONF_START_TIME, default="00:00"): vol.Coerce(str),
+        vol.Optional(CONF_END_TIME, default="23:59:59"): vol.Coerce(str),
+        vol.Optional(CONF_MAX_DURATION_MINUTES): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=1))),
         vol.Optional("use_enabling_entity", default=False): bool,  # Checkbox for enabling entity
         vol.Optional(CONF_FRAMERATE, default=2): int,
         vol.Optional(CONF_MAX_FRAMES, default=100): int,
@@ -40,7 +41,6 @@ INITIAL_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_LOOP, default=True): bool,
         vol.Optional(CONF_USERNAME): str,
         vol.Optional(CONF_PASSWORD): str,
-
     }
 )
 
@@ -128,7 +128,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors[CONF_MAX_FRAMES] = "below_minimum_value"
             if user_input.get(CONF_PASSWORD, '') != '' and user_input.get(CONF_USERNAME, '') == '':
                 errors[CONF_USERNAME] = "username_required"
-            if user_input.get(CONF_MAX_DURATION_MINUTES, DEFAULT_MAX_DURATION_MINUTES) < 1:
+            max_duration = user_input.get(CONF_MAX_DURATION_MINUTES)
+            if max_duration is not None and max_duration < 1:
                 errors[CONF_MAX_DURATION_MINUTES] = "below_minimum_value"
         else:
             # Validate only enabling entity in the second step

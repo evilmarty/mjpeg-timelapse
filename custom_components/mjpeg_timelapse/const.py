@@ -19,7 +19,7 @@ CONF_PAUSED = "paused"
 CONF_START_TIME = "start_time"
 CONF_END_TIME = "end_time"
 CONF_ENABLING_ENTITY_ID = "enabling_entity_id"
-CONF_MAX_DURATION_MINUTES = "max_duration_minutes"  # New configuration key
+CONF_MAX_DURATION_MINUTES = "max_duration_minutes"
 
 # Default values
 DEFAULT_NAME = "Mjpeg Timelapse"

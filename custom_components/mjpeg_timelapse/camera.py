@@ -7,6 +7,7 @@ import pathlib
 import shutil
 import hashlib
 import itertools
+from functools import partial
 from urllib.parse import urlparse
 
 from PIL import Image, UnidentifiedImageError
@@ -32,6 +33,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.reload import async_setup_reload_service
 import homeassistant.util.dt as dt_util
 
@@ -216,13 +218,13 @@ class MjpegTimelapseCamera(Camera):
         """Indicate whether recording or not."""
         return self._fetching_listener is not None
 
-    def turn_on(self):
+    async def async_turn_on(self):
         """Turn on the camera."""
         if not self.is_paused:
             self.start_fetching()
         self._attr_is_on = True
 
-    def turn_off(self):
+    async def async_turn_off(self):
         """Turn off the camera."""
         self.stop_fetching()
         self._attr_is_on = False
@@ -240,23 +242,27 @@ class MjpegTimelapseCamera(Camera):
             "last_updated": self.last_updated
         }
 
+    @callback
     def start_fetching(self):
         """Start fetching images periodically."""
         if self._fetching_listener is None:
-            self._fetching_listener = self.hass.helpers.event.async_track_time_interval(self.fetch_image, self.fetch_interval)
+            self._fetching_listener = async_track_time_interval(self.hass, self.fetch_image, self.fetch_interval)
 
+    @callback
     def stop_fetching(self):
         """Stop fetching images."""
         if self._fetching_listener is not None:
             self._fetching_listener()
             self._fetching_listener = None
 
+    @callback
     def pause_recording(self):
         """Pause recording images."""
         self.stop_fetching()
         self._attr_is_paused = True
         self.schedule_update_ha_state()
 
+    @callback
     def resume_recording(self):
         """Pause recording images."""
         self.start_fetching()
@@ -326,14 +332,14 @@ class MjpegTimelapseCamera(Camera):
         for file in images[:d]:
             file.unlink(missing_ok=True)
 
-    def clear_images(self):
+    async def clear_images(self):
         """Remove all images."""
-        return self.hass.async_add_executor_job(shutil.rmtree, self.image_dir)
+        await self.hass.async_add_executor_job(partial(shutil.rmtree, self.image_dir, ignore_errors=True))
 
     def image_filenames(self):
         return sorted(self.image_dir.glob("*.jpg"))
 
-    def camera_image(self):
+    def camera_image(self, width=None, height=None):
         try:
             last_image = self.image_filenames().pop()
             with open(last_image, "rb") as file:
